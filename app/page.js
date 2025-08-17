@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import { PRIMARY_COLOR, BUTTON_PRIMARY } from './styles'
 
 export default function HomePage() {
   const [user, setUser] = useState(null)
@@ -13,7 +14,7 @@ export default function HomePage() {
       const { data } = await supabase.auth.getUser()
       if (data?.user) {
         setUser(data.user)
-        router.push('/dashboard') // ✅ 已登入 → 直接跳轉
+        router.push('/dashboard') 
       }
     }
 
@@ -24,19 +25,20 @@ export default function HomePage() {
     await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`, // ✅ GitHub OAuth 登入成功後回來的位置
+        redirectTo: `${window.location.origin}/dashboard`, 
       },
     })
   }
 
   return (
-    <main className="min-h-screen p-6 bg-gray-100 text-gray-800 flex flex-col items-center justify-center">
-      <h1 className="text-3xl font-bold mb-6">🐌 StudyTrail</h1>
-      <p className="mb-4 text-lg">Welcome! Please sign in to continue.</p>
+    <main className="min-h-screen p-6 flex flex-col items-center justify-center  bg-slate-200"
+    >
+      <h1 className="text-3xl font-bold mb-6 text-slate-700">🐌 StudyTrail</h1>
+      <p className="mb-4 text-lg  text-slate-700">Welcome! Please sign in to continue.</p>
 
       <button
         onClick={handleLogin}
-        className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+        className={BUTTON_PRIMARY}
       >
         Sign in with GitHub
       </button>
