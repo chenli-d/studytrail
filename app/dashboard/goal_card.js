@@ -30,7 +30,7 @@ export default function GoalCard({ goal, onLog, onDelete, onEdit }) {
       <div className="flex justify-between items-start gap-4">
         {/* Goal Info */}
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-slate-800 mb-1">
+          <h3 className="text-lg font-semibold text-slate-600 mb-1">
             {goal.title}
           </h3>
           <p className="text-sm text-slate-500 mb-1">{goal.subject}</p>
