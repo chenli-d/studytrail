@@ -133,7 +133,7 @@ export default function StudyLogModal({ onClose, onSave, goal, refreshGoals }) {
   const completedTaskCount = checkedTasks.length;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+    <div className="fixed inset-0 bg-opacity-30 flex justify-center items-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md px-6 py-6 sm:p-8 transition-all">
         <h2 className="text-2xl font-semibold mb-4" style={{ color: PRIMARY_COLOR }}>
           Log Study for "{goal.title}"
