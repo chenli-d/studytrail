@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import GoalModal from "./goal_modal";
 import StudyLogModal from "./studylog_modal";
@@ -35,9 +35,9 @@ export default function Dashboard() {
 
   // ---------- Load goals when user changes ----------
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     loadGoals();
-  }, [user]);
+  }, [user?.id, loadGoals]);
 
   // ---------- Filter today's goals ----------
   useEffect(() => {
@@ -66,8 +66,7 @@ export default function Dashboard() {
     setTodaysGoals(filteredTodaysGoals);
   }, [goals]);
 
-  // ---------- Load goals (with tasks & logs) ----------
-  const loadGoals = async () => {
+  const loadGoals = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -95,20 +94,20 @@ export default function Dashboard() {
         return;
       }
 
-      // accumulate logged_time per goal
+      // accumulate total logged time per goal
       const timeMap = {};
       for (const log of logs || []) {
         if (!timeMap[log.goal_id]) timeMap[log.goal_id] = 0;
         timeMap[log.goal_id] += log.logged_time || 0;
       }
 
-      // merge goals with total logged_time
+      // merge goals with aggregated logged time
       const goalsWithTime = (rawGoals || []).map((goal) => ({
         ...goal,
         logged_time: timeMap[goal.id] || 0,
       }));
 
-      // default sort by deadline
+      // sort by deadline by default
       const sorted = goalsWithTime.sort((a, b) => {
         if (!a.deadline) return 1;
         if (!b.deadline) return -1;
@@ -120,7 +119,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Error in loadGoals:", error);
     }
-  };
+  }, [user?.id]);
 
   // ---------- Create new goal ----------
   const handleAddGoal = async (newGoal) => {
@@ -238,7 +237,7 @@ export default function Dashboard() {
       <div className="flex items-center mb-6 px-4 py-3 rounded-lg bg-slate-300 shadow-inner ring-1 ring-white/40">
         <h2 className="flex items-center gap-2 text-xl font-semibold tracking-wide text-slate-800">
           <span className="text-2xl">📌</span>
-          <span style={{ color: PRIMARY_COLOR }}>Today's Goals</span>
+          <span style={{ color: PRIMARY_COLOR }}>{"Today's Goals"}</span>
         </h2>
       </div>
       <GoalCardList
@@ -335,14 +334,16 @@ export default function Dashboard() {
                     deadline: payload.deadline,
                     target_time: payload.target_time,
                   })
-                  .eq("id", selectedGoal.id).throwOnError();
+                  .eq("id", selectedGoal.id)
+                  .throwOnError();
 
                 // handle tasks update for task-based goals
                 if (selectedGoal.goal_type === "task") {
                   const { data: existingTasks } = await supabase
                     .from("tasks")
                     .select("id, task_text")
-                    .eq("goal_id", selectedGoal.id).throwOnError();
+                    .eq("goal_id", selectedGoal.id)
+                    .throwOnError();
 
                   const incoming = (payload.tasks || [])
                     .map((t) => ({
@@ -371,16 +372,23 @@ export default function Dashboard() {
                   );
 
                   if (toDelete.length) {
-                    await supabase.from("tasks").delete().in("id", toDelete).throwOnError();
+                    await supabase
+                      .from("tasks")
+                      .delete()
+                      .in("id", toDelete)
+                      .throwOnError();
                   }
 
                   if (toInsert.length) {
-                    await supabase.from("tasks").insert(
-                      toInsert.map((t) => ({
-                        goal_id: selectedGoal.id,
-                        task_text: t.task_text,
-                      }))
-                    ).throwOnError();
+                    await supabase
+                      .from("tasks")
+                      .insert(
+                        toInsert.map((t) => ({
+                          goal_id: selectedGoal.id,
+                          task_text: t.task_text,
+                        }))
+                      )
+                      .throwOnError();
                   }
 
                   if (toUpdate.length) {
@@ -389,7 +397,8 @@ export default function Dashboard() {
                         supabase
                           .from("tasks")
                           .update({ task_text: row.task_text })
-                          .eq("id", row.id).throwOnError()
+                          .eq("id", row.id)
+                          .throwOnError()
                       )
                     );
                   }

@@ -187,7 +187,7 @@ export default function StudyLogModal({ onClose, onSave, goal, refreshGoals }) {
           className="text-2xl font-semibold mb-4"
           style={{ color: PRIMARY_COLOR }}
         >
-          📓 Log Study for "{goal.title}"
+          📓 Log Study for <span className="font-extrabold">{goal.title}</span>
         </h2>
 
         {goal.goal_type === "time" ? (

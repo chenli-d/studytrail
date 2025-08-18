@@ -19,7 +19,7 @@ export default function HomePage() {
       }
     }
     getUser()
-  }, [])
+  }, [router])
 
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({
