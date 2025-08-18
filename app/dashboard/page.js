@@ -24,6 +24,61 @@ export default function Dashboard() {
   const [activeSort, setActiveSort] = useState("dueDate"); // current sorting method
   const router = useRouter();
 
+  const loadGoals = useCallback(async () => {
+    if (!user?.id) return;
+ 
+    try {
+      // fetch goals with tasks and logs
+      const { data: rawGoals, error } = await supabase
+        .from("goals")
+        .select("*, tasks(*), study_logs(*)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+ 
+      if (error) {
+        console.error("Error fetching goals:", error.message);
+        return;
+      }
+ 
+      // fetch study logs for time calculations
+      const { data: logs, error: logsError } = await supabase
+        .from("study_logs")
+        .select("goal_id, logged_time")
+        .eq("user_id", user.id);
+ 
+      if (logsError) {
+        console.error("Error fetching logs:", logsError.message);
+        setGoals(rawGoals || []);
+        return;
+      }
+ 
+      // accumulate total logged time per goal
+      const timeMap = {};
+      for (const log of logs || []) {
+        if (!timeMap[log.goal_id]) timeMap[log.goal_id] = 0;
+        timeMap[log.goal_id] += log.logged_time || 0;
+      }
+ 
+      // merge goals with aggregated logged time
+      const goalsWithTime = (rawGoals || []).map((goal) => ({
+        ...goal,
+        logged_time: timeMap[goal.id] || 0,
+      }));
+ 
+      // sort by deadline by default
+      const sorted = goalsWithTime.sort((a, b) => {
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return new Date(a.deadline) - new Date(b.deadline);
+      });
+ 
+      setGoals(sorted);
+      setActiveSort("dueDate");
+    } catch (error) {
+      console.error("Error in loadGoals:", error);
+    }
+  }, [user?.id]);
+
   // ---------- Fetch current user ----------
   useEffect(() => {
     const getUser = async () => {
@@ -66,60 +121,7 @@ export default function Dashboard() {
     setTodaysGoals(filteredTodaysGoals);
   }, [goals]);
 
-  const loadGoals = useCallback(async () => {
-    if (!user?.id) return;
-
-    try {
-      // fetch goals with tasks and logs
-      const { data: rawGoals, error } = await supabase
-        .from("goals")
-        .select("*, tasks(*), study_logs(*)")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching goals:", error.message);
-        return;
-      }
-
-      // fetch study logs for time calculations
-      const { data: logs, error: logsError } = await supabase
-        .from("study_logs")
-        .select("goal_id, logged_time")
-        .eq("user_id", user.id);
-
-      if (logsError) {
-        console.error("Error fetching logs:", logsError.message);
-        setGoals(rawGoals || []);
-        return;
-      }
-
-      // accumulate total logged time per goal
-      const timeMap = {};
-      for (const log of logs || []) {
-        if (!timeMap[log.goal_id]) timeMap[log.goal_id] = 0;
-        timeMap[log.goal_id] += log.logged_time || 0;
-      }
-
-      // merge goals with aggregated logged time
-      const goalsWithTime = (rawGoals || []).map((goal) => ({
-        ...goal,
-        logged_time: timeMap[goal.id] || 0,
-      }));
-
-      // sort by deadline by default
-      const sorted = goalsWithTime.sort((a, b) => {
-        if (!a.deadline) return 1;
-        if (!b.deadline) return -1;
-        return new Date(a.deadline) - new Date(b.deadline);
-      });
-
-      setGoals(sorted);
-      setActiveSort("dueDate");
-    } catch (error) {
-      console.error("Error in loadGoals:", error);
-    }
-  }, [user?.id]);
+  
 
   // ---------- Create new goal ----------
   const handleAddGoal = async (newGoal) => {
