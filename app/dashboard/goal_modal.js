@@ -7,31 +7,70 @@ import {
   BUTTON_SECONDARY,
   BUTTON_DELETE,
   PRIMARY_COLOR,
-} from "../styles";
+} from "../../styles/styles";
+import { Trash2 } from "lucide-react";
 
 export default function GoalModal({ onClose, onSave, goal }) {
   const isEdit = !!goal?.id;
 
-  const [goalType, setGoalType] = useState("time");
-  const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [targetTime, setTargetTime] = useState("");
-  const [tasks, setTasks] = useState([{ id: null, task_text: "" }]);
+  // ---------- State ----------
+  const [goalType, setGoalType] = useState("time"); // type: time-based or task-based
+  const [title, setTitle] = useState(""); // goal title
+  const [subject, setSubject] = useState(""); // subject of the goal
+  const [deadline, setDeadline] = useState(""); // deadline date
+  const [targetTime, setTargetTime] = useState(""); // target time in hours
+  const [tasks, setTasks] = useState([{ id: null, task_text: "" }]); // task list for task-based goal
 
+  // ---------- Load existing goal (for edit) or reset states (for new) ----------
   useEffect(() => {
     if (goal) {
       setGoalType(goal.goal_type || "time");
       setTitle(goal.title || "");
       setSubject(goal.subject || "");
-      setDeadline(goal.deadline?.split("T")[0] || "");
+      setDeadline(() => {
+        const v = goal.deadline;
+        if (!v) return ""; // No deadline → keep the input empty
+
+        // --- If the value is a string ---
+        if (typeof v === "string") {
+          // Already in "YYYY-MM-DD" → use as-is
+          if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+
+          // Otherwise, parse as Date (e.g., ISO with "T"), then extract LOCAL Y/M/D
+          const d = new Date(v);
+          if (isNaN(d)) return ""; // Guard against invalid dates
+
+          // Build "YYYY-MM-DD" from local parts (not UTC) to match the user's timezone
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${dd}`;
+        }
+
+        // --- If the value is not a string (Date object or timestamp) ---
+        // Convert to Date and again extract LOCAL Y/M/D
+        const d = new Date(v);
+        if (isNaN(d)) return ""; // Guard against invalid dates
+
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${dd}`;
+      });
+
       setTargetTime(goal.target_time?.toString() || "");
       if (Array.isArray(goal.tasks) && goal.tasks.length > 0) {
-        setTasks(goal.tasks.map(t => ({ id: t.id ?? null, task_text: t.task_text ?? "" })));
+        setTasks(
+          goal.tasks.map((t) => ({
+            id: t.id ?? null,
+            task_text: t.task_text ?? "",
+          }))
+        );
       } else {
         setTasks([{ id: null, task_text: "" }]);
       }
     } else {
+      // reset for new goal
       setGoalType("time");
       setTitle("");
       setSubject("");
@@ -41,35 +80,60 @@ export default function GoalModal({ onClose, onSave, goal }) {
     }
   }, [goal?.id]);
 
-  const handleAddTask = () => setTasks(prev => [...prev, { id: null, task_text: "" }]);
+  // ---------- Task Handlers ----------
+  const handleAddTask = () =>
+    setTasks((prev) => [...prev, { id: null, task_text: "" }]);
   const handleTaskChange = (value, index) => {
-    setTasks(prev => prev.map((t, i) => (i === index ? { ...t, task_text: value } : t)));
+    setTasks((prev) =>
+      prev.map((t, i) => (i === index ? { ...t, task_text: value } : t))
+    );
   };
   const handleDeleteTask = (index) => {
-    setTasks(prev => {
+    setTasks((prev) => {
       const next = prev.filter((_, i) => i !== index);
       return next.length > 0 ? next : [{ id: null, task_text: "" }];
     });
   };
 
+  // ---------- Validation before submit ----------
   const validate = () => {
-    if (!title.trim()) { alert("Please enter a goal title."); return false; }
-    if (!subject.trim()) { alert("Please enter a subject."); return false; }
+    if (!title.trim()) {
+      alert("Please enter a goal title.");
+      return false;
+    }
+    if (!subject.trim()) {
+      alert("Please enter a subject.");
+      return false;
+    }
+    if (!deadline) {
+      alert("Please select a deadline.");
+      return false;
+    }
     if (goalType === "time") {
       const hrs = Number(targetTime);
-      if (!Number.isFinite(hrs) || hrs <= 0) { alert("Please set a positive number of target hours."); return false; }
+      if (!Number.isFinite(hrs) || hrs <= 0) {
+        alert("Please set a positive number of target hours.");
+        return false;
+      }
     } else {
-      const nonEmpty = tasks.filter(t => t.task_text && t.task_text.trim() !== "");
-      if (nonEmpty.length === 0) { alert("Please add at least one task."); return false; }
+      const nonEmpty = tasks.filter(
+        (t) => t.task_text && t.task_text.trim() !== ""
+      );
+      if (nonEmpty.length === 0) {
+        alert("Please add at least one task.");
+        return false;
+      }
     }
     return true;
   };
 
+  // ---------- Submit handler ----------
   const handleSubmit = async () => {
     if (!validate()) return;
 
     const formattedDeadline = deadline || ""; // keep as local YYYY-MM-DD string
 
+    // payload structure depends on goal type
     const payload = {
       title: title.trim(),
       subject: subject.trim(),
@@ -77,12 +141,20 @@ export default function GoalModal({ onClose, onSave, goal }) {
       goal_type: goalType,
       ...(goalType === "time"
         ? { target_time: Number(targetTime) }
-        : { tasks: tasks.map(t => ({ id: t.id ?? null, task_text: (t.task_text || "").trim() })).filter(t => t.task_text) }),
+        : {
+            tasks: tasks
+              .map((t) => ({
+                id: t.id ?? null,
+                task_text: (t.task_text || "").trim(),
+              }))
+              .filter((t) => t.task_text),
+          }),
       ...(isEdit && { id: goal.id }),
     };
 
     await onSave(payload);
 
+    // reset fields if it's a new goal
     if (!isEdit) {
       setGoalType("time");
       setTitle("");
@@ -93,6 +165,7 @@ export default function GoalModal({ onClose, onSave, goal }) {
     }
   };
 
+  // ---------- Styles ----------
   const ringStyle = { "--tw-ring-color": PRIMARY_COLOR };
   const accentStyle = { accentColor: PRIMARY_COLOR };
 
@@ -107,12 +180,18 @@ export default function GoalModal({ onClose, onSave, goal }) {
           transition={{ duration: 0.2 }}
           className="w-full max-w-md rounded-2xl bg-white px-6 py-6 shadow-xl sm:px-8"
         >
-          <h2 className="text-2xl font-bold mb-4" style={{ color: PRIMARY_COLOR }}>
-            {isEdit ? "Edit Goal" : "Add New Goal"}
+          <h2
+            className="text-2xl font-bold mb-4"
+            style={{ color: PRIMARY_COLOR }}
+          >
+            {isEdit ? "✏️ Edit Goal" : "✏️ Add New Goal"}
           </h2>
 
           {/* Title */}
-          <label className="block text-sm font-medium mb-1" style={{ color: PRIMARY_COLOR }}>
+          <label
+            className="block text-sm font-medium mb-1"
+            style={{ color: PRIMARY_COLOR }}
+          >
             Goal Title
           </label>
           <input
@@ -124,7 +203,10 @@ export default function GoalModal({ onClose, onSave, goal }) {
           />
 
           {/* Subject */}
-          <label className="block text-sm font-medium mb-1" style={{ color: PRIMARY_COLOR }}>
+          <label
+            className="block text-sm font-medium mb-1"
+            style={{ color: PRIMARY_COLOR }}
+          >
             Subject
           </label>
           <input
@@ -136,7 +218,10 @@ export default function GoalModal({ onClose, onSave, goal }) {
           />
 
           {/* Deadline */}
-          <label className="block text-sm font-medium mb-1" style={{ color: PRIMARY_COLOR }}>
+          <label
+            className="block text-sm font-medium mb-1"
+            style={{ color: PRIMARY_COLOR }}
+          >
             Deadline
           </label>
           <input
@@ -149,16 +234,25 @@ export default function GoalModal({ onClose, onSave, goal }) {
 
           {/* Goal Type*/}
           <div className="mt-3 mb-4">
-            <label className="block text-sm font-medium" style={{ color: PRIMARY_COLOR }}>
+            <label
+              className="block text-sm font-medium"
+              style={{ color: PRIMARY_COLOR }}
+            >
               Goal Type
               {isEdit && (
-                <span className="text-xs ml-2" style={{ color: `${PRIMARY_COLOR}B3` }}>
+                <span
+                  className="text-xs ml-2"
+                  style={{ color: `${PRIMARY_COLOR}B3` }}
+                >
                   (Cannot be changed)
                 </span>
               )}
             </label>
             <div className="mt-2 flex items-center gap-6">
-              <label className="flex items-center gap-2 text-sm" style={{ color: PRIMARY_COLOR }}>
+              <label
+                className="flex items-center gap-2 text-sm"
+                style={{ color: PRIMARY_COLOR }}
+              >
                 <input
                   type="radio"
                   name="goalType"
@@ -167,11 +261,19 @@ export default function GoalModal({ onClose, onSave, goal }) {
                   onChange={() => setGoalType("time")}
                   disabled={isEdit}
                 />
-                <span className={isEdit ? "" : ""} style={{ color: isEdit ? `${PRIMARY_COLOR}B3` : PRIMARY_COLOR }}>
+                <span
+                  className={isEdit ? "" : ""}
+                  style={{
+                    color: isEdit ? `${PRIMARY_COLOR}B3` : PRIMARY_COLOR,
+                  }}
+                >
                   Time-based
                 </span>
               </label>
-              <label className="flex items-center gap-2 text-sm" style={{ color: PRIMARY_COLOR }}>
+              <label
+                className="flex items-center gap-2 text-sm"
+                style={{ color: PRIMARY_COLOR }}
+              >
                 <input
                   type="radio"
                   name="goalType"
@@ -180,7 +282,12 @@ export default function GoalModal({ onClose, onSave, goal }) {
                   onChange={() => setGoalType("task")}
                   disabled={isEdit}
                 />
-                <span className={isEdit ? "" : ""} style={{ color: isEdit ? `${PRIMARY_COLOR}B3` : PRIMARY_COLOR }}>
+                <span
+                  className={isEdit ? "" : ""}
+                  style={{
+                    color: isEdit ? `${PRIMARY_COLOR}B3` : PRIMARY_COLOR,
+                  }}
+                >
                   Task-based
                 </span>
               </label>
@@ -190,7 +297,10 @@ export default function GoalModal({ onClose, onSave, goal }) {
           {/* Time Goal Input */}
           {goalType === "time" && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1" style={{ color: PRIMARY_COLOR }}>
+              <label
+                className="block text-sm font-medium mb-1"
+                style={{ color: PRIMARY_COLOR }}
+              >
                 Target Hours
               </label>
               <input
@@ -209,11 +319,17 @@ export default function GoalModal({ onClose, onSave, goal }) {
           {/* Task List Input */}
           {goalType === "task" && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-2" style={{ color: PRIMARY_COLOR }}>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: PRIMARY_COLOR }}
+              >
                 Tasks
               </label>
               {tasks.map((task, index) => (
-                <div key={task.id ?? `new-${index}`} className="flex items-center gap-2 mb-2">
+                <div
+                  key={task.id ?? `new-${index}`}
+                  className="flex items-center gap-2 mb-2"
+                >
                   <input
                     className="flex-1 input border px-3 py-2 rounded border-gray-300 focus:outline-none focus:ring-2"
                     style={ringStyle}
@@ -226,7 +342,7 @@ export default function GoalModal({ onClose, onSave, goal }) {
                     onClick={() => handleDeleteTask(index)}
                     className={`${BUTTON_DELETE} text-xs px-2 py-1`}
                   >
-                    🗑️
+                    <Trash2 className="h-5 w-5 mr-1" />
                   </button>
                 </div>
               ))}

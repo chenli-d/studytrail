@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
-import { PRIMARY_COLOR, BUTTON_PRIMARY } from './styles'
+import { BUTTON_PRIMARY } from '../styles/styles'
+import { motion } from 'framer-motion'
 
 export default function HomePage() {
   const [user, setUser] = useState(null)
@@ -14,10 +15,9 @@ export default function HomePage() {
       const { data } = await supabase.auth.getUser()
       if (data?.user) {
         setUser(data.user)
-        router.push('/dashboard') 
+        router.push('/dashboard')
       }
     }
-
     getUser()
   }, [])
 
@@ -25,23 +25,41 @@ export default function HomePage() {
     await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`, 
+        redirectTo: `${window.location.origin}/dashboard`,
       },
     })
   }
 
   return (
-    <main className="min-h-screen p-6 flex flex-col items-center justify-center  bg-slate-200"
-    >
-      <h1 className="text-3xl font-bold mb-6 text-slate-700">🐌 StudyTrail</h1>
-      <p className="mb-4 text-lg  text-slate-700">Welcome! Please sign in to continue.</p>
+    <main className="min-h-screen p-6 flex flex-col items-center justify-center bg-slate-200">
+      <h1 className="text-5xl font-extrabold mb-8 text-slate-700 flex items-center gap-3">
+        🐌 StudyTrail
+      </h1>
 
-      <button
+      <motion.p
+        className="mb-6 text-2xl text-slate-700 flex items-center gap-2"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: [20, -5, 0] }}
+        transition={{ duration: 0.9, ease: 'easeOut', delay: 0.3 }}
+      >
+        <motion.span
+          style={{ display: 'inline-block', transformOrigin: '70% 70%' }}
+          animate={{ rotate: [0, 14, -8, 14, -4, 10, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          👋
+        </motion.span>
+        Welcome! Please sign in to continue.
+      </motion.p>
+
+      <motion.button
         onClick={handleLogin}
-        className={BUTTON_PRIMARY}
+        className={`${BUTTON_PRIMARY} px-6 py-3 text-lg`}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
       >
         Sign in with GitHub
-      </button>
+      </motion.button>
     </main>
   )
 }

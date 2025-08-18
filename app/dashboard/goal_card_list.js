@@ -1,6 +1,6 @@
 "use client";
 import GoalCard from "./goal_card";
-import { PRIMARY_COLOR } from "../styles";
+import { PRIMARY_COLOR } from "../../styles/styles";
 
 export default function GoalCardList({
   title,
@@ -11,12 +11,12 @@ export default function GoalCardList({
 }) {
   return (
     <section className="mb-10">
-      <h2
-        className="text-2xl font-bold mb-4 tracking-tight"
+      <h3
+        className="text-xl font-bold mb-4 tracking-tight"
         style={{ color: PRIMARY_COLOR }}
       >
         {title}
-      </h2>
+      </h3>
 
       <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {goals.map((goal) => (
