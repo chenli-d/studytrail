@@ -78,7 +78,7 @@ export default function GoalModal({ onClose, onSave, goal }) {
       setTargetTime("");
       setTasks([{ id: null, task_text: "" }]);
     }
-  }, [goal?.id]);
+  }, [goal]);
 
   // ---------- Task Handlers ----------
   const handleAddTask = () =>

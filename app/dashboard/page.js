@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import GoalModal from "./goal_modal";
 import StudyLogModal from "./studylog_modal";
@@ -23,13 +23,6 @@ export default function Dashboard() {
   const [selectedGoal, setSelectedGoal] = useState(null); // goal being edited/logged
   const [activeSort, setActiveSort] = useState("dueDate"); // current sorting method
   const router = useRouter();
-Chen Li added Si Di and An-Ni Huang to the chat.
-
- 
-10:42 p.m. Call started
-
- 
-const loadGoals = useCallback(async () => {
     if (!user?.id) return;
  
     try {
@@ -83,7 +76,7 @@ const loadGoals = useCallback(async () => {
       console.error("Error in loadGoals:", error);
     }
   }, [user?.id]);
- 
+
   // ---------- Fetch current user ----------
   useEffect(() => {
     const getUser = async () => {
@@ -95,9 +88,9 @@ const loadGoals = useCallback(async () => {
 
   // ---------- Load goals when user changes ----------
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     loadGoals();
-  }, [user]);
+  }, [user?.id, loadGoals]);
 
   // ---------- Filter today's goals ----------
   useEffect(() => {
@@ -126,61 +119,7 @@ const loadGoals = useCallback(async () => {
     setTodaysGoals(filteredTodaysGoals);
   }, [goals]);
 
-  // ---------- Load goals (with tasks & logs) ----------
-  const loadGoals = async () => {
-    if (!user?.id) return;
-
-    try {
-      // fetch goals with tasks and logs
-      const { data: rawGoals, error } = await supabase
-        .from("goals")
-        .select("*, tasks(*), study_logs(*)")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching goals:", error.message);
-        return;
-      }
-
-      // fetch study logs for time calculations
-      const { data: logs, error: logsError } = await supabase
-        .from("study_logs")
-        .select("goal_id, logged_time")
-        .eq("user_id", user.id);
-
-      if (logsError) {
-        console.error("Error fetching logs:", logsError.message);
-        setGoals(rawGoals || []);
-        return;
-      }
-
-      // accumulate logged_time per goal
-      const timeMap = {};
-      for (const log of logs || []) {
-        if (!timeMap[log.goal_id]) timeMap[log.goal_id] = 0;
-        timeMap[log.goal_id] += log.logged_time || 0;
-      }
-
-      // merge goals with total logged_time
-      const goalsWithTime = (rawGoals || []).map((goal) => ({
-        ...goal,
-        logged_time: timeMap[goal.id] || 0,
-      }));
-
-      // default sort by deadline
-      const sorted = goalsWithTime.sort((a, b) => {
-        if (!a.deadline) return 1;
-        if (!b.deadline) return -1;
-        return new Date(a.deadline) - new Date(b.deadline);
-      });
-
-      setGoals(sorted);
-      setActiveSort("dueDate");
-    } catch (error) {
-      console.error("Error in loadGoals:", error);
-    }
-  };
+  
 
   // ---------- Create new goal ----------
   const handleAddGoal = async (newGoal) => {
@@ -298,7 +237,7 @@ const loadGoals = useCallback(async () => {
       <div className="flex items-center mb-6 px-4 py-3 rounded-lg bg-slate-300 shadow-inner ring-1 ring-white/40">
         <h2 className="flex items-center gap-2 text-xl font-semibold tracking-wide text-slate-800">
           <span className="text-2xl">📌</span>
-          <span style={{ color: PRIMARY_COLOR }}>Today's Goals</span>
+          <span style={{ color: PRIMARY_COLOR }}>{"Today's Goals"}</span>
         </h2>
       </div>
       <GoalCardList
@@ -395,14 +334,16 @@ const loadGoals = useCallback(async () => {
                     deadline: payload.deadline,
                     target_time: payload.target_time,
                   })
-                  .eq("id", selectedGoal.id).throwOnError();
+                  .eq("id", selectedGoal.id)
+                  .throwOnError();
 
                 // handle tasks update for task-based goals
                 if (selectedGoal.goal_type === "task") {
                   const { data: existingTasks } = await supabase
                     .from("tasks")
                     .select("id, task_text")
-                    .eq("goal_id", selectedGoal.id).throwOnError();
+                    .eq("goal_id", selectedGoal.id)
+                    .throwOnError();
 
                   const incoming = (payload.tasks || [])
                     .map((t) => ({
@@ -431,16 +372,23 @@ const loadGoals = useCallback(async () => {
                   );
 
                   if (toDelete.length) {
-                    await supabase.from("tasks").delete().in("id", toDelete).throwOnError();
+                    await supabase
+                      .from("tasks")
+                      .delete()
+                      .in("id", toDelete)
+                      .throwOnError();
                   }
 
                   if (toInsert.length) {
-                    await supabase.from("tasks").insert(
-                      toInsert.map((t) => ({
-                        goal_id: selectedGoal.id,
-                        task_text: t.task_text,
-                      }))
-                    ).throwOnError();
+                    await supabase
+                      .from("tasks")
+                      .insert(
+                        toInsert.map((t) => ({
+                          goal_id: selectedGoal.id,
+                          task_text: t.task_text,
+                        }))
+                      )
+                      .throwOnError();
                   }
 
                   if (toUpdate.length) {
@@ -449,7 +397,8 @@ const loadGoals = useCallback(async () => {
                         supabase
                           .from("tasks")
                           .update({ task_text: row.task_text })
-                          .eq("id", row.id).throwOnError()
+                          .eq("id", row.id)
+                          .throwOnError()
                       )
                     );
                   }
