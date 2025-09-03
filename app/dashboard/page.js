@@ -23,8 +23,6 @@ export default function Dashboard() {
   const [selectedGoal, setSelectedGoal] = useState(null); // goal being edited/logged
   const [activeSort, setActiveSort] = useState("dueDate"); // current sorting method
   const router = useRouter();
-
-  const loadGoals = useCallback(async () => {
     if (!user?.id) return;
  
     try {
